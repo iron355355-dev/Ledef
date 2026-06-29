@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const cron = require('node-cron');
 const http = require('http');
 
-// ВАШИ URL
+// === СПИСОК URL (30 штук) ===
 const urls = [
   'https://ledeffect.ru/projects/medical/',
   'https://ledeffect.ru/projects/Interior/karcher/',
@@ -27,12 +27,13 @@ const urls = [
   'https://buyprodam.ru/1a/test.php'
 ];
 
-// Дополняем до 30
+// Дополняем до 30 (если меньше)
 const fullUrls = [...urls];
 while (fullUrls.length < 30) {
   fullUrls.push(urls[fullUrls.length % urls.length]);
 }
 
+// === ФУНКЦИЯ ОТКРЫТИЯ СТРАНИЦ ===
 async function openPages() {
   console.log(`🔄 [${new Date().toLocaleTimeString('ru-RU')}] Запуск открытия 30 страниц`);
   
@@ -69,7 +70,7 @@ async function openPages() {
   console.log(`✅ [${new Date().toLocaleTimeString('ru-RU')}] Завершено: ${successCount}/${fullUrls.length} страниц`);
 }
 
-// РАСПИСАНИЕ
+// === КОНВЕРТЕР МОСКОВСКОГО ВРЕМЕНИ В UTC ===
 const scheduleInMoscow = (cronTime, callback) => {
   const [minute, hour, day, month, dayOfWeek] = cronTime.split(' ');
   const utcHour = (parseInt(hour) - 3 + 24) % 24;
@@ -79,14 +80,15 @@ const scheduleInMoscow = (cronTime, callback) => {
   console.log(`⏰ Запланировано на ${hour}:${minute} МСК (${utcHour}:${minute} UTC)`);
 };
 
-scheduleInMoscow('0 12 * * *', openPages);
-scheduleInMoscow('0 16 * * *', openPages);
-scheduleInMoscow('0 20 * * *', openPages);
+// === РАСПИСАНИЕ (МОСКОВСКОЕ ВРЕМЯ) ===
+scheduleInMoscow('0 12 * * *', openPages); // 12:00 МСК
+scheduleInMoscow('0 16 * * *', openPages); // 16:00 МСК
+scheduleInMoscow('0 20 * * *', openPages); // 20:00 МСК
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
 console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
 
-// === HTTP-СЕРВЕР ДЛЯ RENDER ===
+// === HTTP-СЕРВЕР ДЛЯ RENDER (ЧТОБЫ НЕ ЗАСЫПАЛ) ===
 const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.end('OK');
