@@ -1,0 +1,12 @@
+{
+  "name": "render-playwright-opener",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "node-cron": "^3.0.3"
+  }
+}
