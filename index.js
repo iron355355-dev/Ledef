@@ -1,7 +1,8 @@
 const { chromium } = require('playwright');
 const cron = require('node-cron');
+const http = require('http');
 
-// ВАШИ URL (убрал дубли, оставил ровно 30 уникальных)
+// ВАШИ URL
 const urls = [
   'https://ledeffect.ru/projects/medical/',
   'https://ledeffect.ru/projects/Interior/karcher/',
@@ -26,7 +27,7 @@ const urls = [
   'https://buyprodam.ru/1a/test.php'
 ];
 
-// Дополнительные URL, чтобы было ровно 30 (повторяем первые 9)
+// Дополняем до 30
 const fullUrls = [...urls];
 while (fullUrls.length < 30) {
   fullUrls.push(urls[fullUrls.length % urls.length]);
@@ -50,18 +51,13 @@ async function openPages() {
     const page = await context.newPage();
     try {
       console.log(`📄 [${i+1}/30] Открываю: ${fullUrls[i]}`);
-      
       await page.goto(fullUrls[i], { 
         waitUntil: 'networkidle',
         timeout: 30000 
       });
-      
-      // Ждём выполнения JavaScript
       await page.waitForTimeout(2000);
-      
       successCount++;
       console.log(`✅ [${i+1}/30] Успешно: ${fullUrls[i]}`);
-      
     } catch (error) {
       console.error(`❌ [${i+1}/30] Ошибка: ${fullUrls[i]} - ${error.message}`);
     } finally {
@@ -73,25 +69,30 @@ async function openPages() {
   console.log(`✅ [${new Date().toLocaleTimeString('ru-RU')}] Завершено: ${successCount}/${fullUrls.length} страниц`);
 }
 
-// РАСПИСАНИЕ ПО МОСКОВСКОМУ ВРЕМЕНИ
-// Добавляем 3 часа к UTC (Москва UTC+3)
+// РАСПИСАНИЕ
 const scheduleInMoscow = (cronTime, callback) => {
-  // Конвертируем московское время в UTC
   const [minute, hour, day, month, dayOfWeek] = cronTime.split(' ');
   const utcHour = (parseInt(hour) - 3 + 24) % 24;
   const utcCron = `${minute} ${utcHour} ${day} ${month} ${dayOfWeek}`;
   
-  cron.schedule(utcCron, callback, {
-    timezone: "UTC"
-  });
-  
+  cron.schedule(utcCron, callback, { timezone: "UTC" });
   console.log(`⏰ Запланировано на ${hour}:${minute} МСК (${utcHour}:${minute} UTC)`);
 };
 
-// Запускаем в 12:00, 16:00, 20:00 по Москве
 scheduleInMoscow('0 12 * * *', openPages);
 scheduleInMoscow('0 16 * * *', openPages);
 scheduleInMoscow('0 20 * * *', openPages);
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
 console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
+
+// === HTTP-СЕРВЕР ДЛЯ RENDER ===
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end('OK');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🌐 HTTP-сервер запущен на порту ${PORT}`);
+});
