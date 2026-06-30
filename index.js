@@ -1,6 +1,7 @@
 const { chromium } = require('playwright');
 const cron = require('node-cron');
 const http = require('http');
+const fs = require('fs');
 
 // === СПИСОК URL (30 штук) ===
 const urls = [
@@ -27,7 +28,7 @@ const urls = [
   'https://buyprodam.ru/1a/test.php'
 ];
 
-// Дополняем до 30 (если меньше)
+// Дополняем до 30
 const fullUrls = [...urls];
 while (fullUrls.length < 30) {
   fullUrls.push(urls[fullUrls.length % urls.length]);
@@ -35,7 +36,7 @@ while (fullUrls.length < 30) {
 
 // === ФУНКЦИЯ ОТКРЫТИЯ СТРАНИЦ ===
 async function openPages() {
-  console.log(`🔄 [${new Date().toLocaleTimeString('ru-RU')}] Запуск открытия 30 страниц`);
+  console.log(`🔄 [${new Date().toLocaleString('ru-RU')}] Запуск открытия 30 страниц`);
   
   const browser = await chromium.launch({ 
     headless: true,
@@ -43,22 +44,58 @@ async function openPages() {
   });
   
   const context = await browser.newContext({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    viewport: { width: 1920, height: 1080 }
   });
   
   let successCount = 0;
+  let screenshotTaken = false;
+  const startTime = Date.now();
   
   for (let i = 0; i < fullUrls.length; i++) {
     const page = await context.newPage();
     try {
       console.log(`📄 [${i+1}/30] Открываю: ${fullUrls[i]}`);
-      await page.goto(fullUrls[i], { 
+      
+      const response = await page.goto(fullUrls[i], { 
         waitUntil: 'networkidle',
         timeout: 30000 
       });
+      
+      // === ПРОВЕРКА ВЫПОЛНЕНИЯ JAVASCRIPT ===
+      const jsExecuted = await page.evaluate(() => {
+        return {
+          title: document.title,
+          scripts: document.scripts.length,
+          readyState: document.readyState,
+          url: window.location.href,
+          bodyLength: document.body ? document.body.textContent.length : 0
+        };
+      });
+      
+      console.log(`📊 [${i+1}/30] Статус: ${response.status()}, JS выполнен`);
+      console.log(`   📌 title: "${jsExecuted.title}"`);
+      console.log(`   📌 скриптов: ${jsExecuted.scripts}, состояние: ${jsExecuted.readyState}`);
+      console.log(`   📌 длина body: ${jsExecuted.bodyLength} символов`);
+      
+      // === СКРИНШОТ ТОЛЬКО ДЛЯ ПЕРВОЙ СТРАНИЦЫ (ЧЕРЕЗ 10 МИНУТ ПОСЛЕ ЗАПУСКА) ===
+      if (i === 0 && !screenshotTaken) {
+        const elapsedMinutes = (Date.now() - startTime) / 60000;
+        if (elapsedMinutes >= 10) {
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const filename = `/tmp/screenshot-${timestamp}.png`;
+          await page.screenshot({ path: filename, fullPage: true });
+          console.log(`📸 [${i+1}/30] СКРИНШОТ СОХРАНЁН: ${filename} (через ${Math.round(elapsedMinutes)} мин)`);
+          screenshotTaken = true;
+        } else {
+          console.log(`⏳ [${i+1}/30] Скриншот будет через ${Math.round(10 - elapsedMinutes)} мин`);
+        }
+      }
+      
       await page.waitForTimeout(2000);
       successCount++;
       console.log(`✅ [${i+1}/30] Успешно: ${fullUrls[i]}`);
+      
     } catch (error) {
       console.error(`❌ [${i+1}/30] Ошибка: ${fullUrls[i]} - ${error.message}`);
     } finally {
@@ -67,7 +104,8 @@ async function openPages() {
   }
   
   await browser.close();
-  console.log(`✅ [${new Date().toLocaleTimeString('ru-RU')}] Завершено: ${successCount}/${fullUrls.length} страниц`);
+  console.log(`✅ [${new Date().toLocaleString('ru-RU')}] Завершено: ${successCount}/${fullUrls.length} страниц`);
+  console.log(`📊 Общее время выполнения: ${Math.round((Date.now() - startTime) / 1000)} сек`);
 }
 
 // === КОНВЕРТЕР МОСКОВСКОГО ВРЕМЕНИ В UTC ===
@@ -80,13 +118,12 @@ const scheduleInMoscow = (cronTime, callback) => {
   console.log(`⏰ Запланировано на ${hour}:${minute} МСК (${utcHour}:${minute} UTC)`);
 };
 
-// === РАСПИСАНИЕ (МОСКОВСКОЕ ВРЕМЯ) ===
-scheduleInMoscow('0 12 * * *', openPages); // 12:00 МСК
-scheduleInMoscow('0 16 * * *', openPages); // 16:00 МСК
-scheduleInMoscow('0 20 * * *', openPages); // 20:00 МСК
+// === РАСПИСАНИЕ: КАЖДЫЙ ЧАС В 00 МИНУТ (МОСКОВСКОЕ ВРЕМЯ) ===
+scheduleInMoscow('0 * * * *', openPages); // Каждый час в 00 минут МСК
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
 console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
+console.log('⏰ Расписание: каждый час в 00 минут по Москве');
 
 // === HTTP-СЕРВЕР ДЛЯ RENDER (ЧТОБЫ НЕ ЗАСЫПАЛ) ===
 const server = http.createServer((req, res) => {
