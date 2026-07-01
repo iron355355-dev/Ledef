@@ -78,18 +78,18 @@ async function openPages() {
       console.log(`   📌 скриптов: ${jsExecuted.scripts}, состояние: ${jsExecuted.readyState}`);
       console.log(`   📌 длина body: ${jsExecuted.bodyLength} символов`);
       
-      // === СКРИНШОТ ТОЛЬКО ДЛЯ ПЕРВОЙ СТРАНИЦЫ (ЧЕРЕЗ 10 МИНУТ ПОСЛЕ ЗАПУСКА) ===
-      if (i === 0 && !screenshotTaken) {
-        const elapsedMinutes = (Date.now() - startTime) / 60000;
-        if (elapsedMinutes >= 10) {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const filename = `/tmp/screenshot-${timestamp}.png`;
-          await page.screenshot({ path: filename, fullPage: true });
-          console.log(`📸 [${i+1}/30] СКРИНШОТ СОХРАНЁН: ${filename} (через ${Math.round(elapsedMinutes)} мин)`);
-          screenshotTaken = true;
-        } else {
-          console.log(`⏳ [${i+1}/30] Скриншот будет через ${Math.round(10 - elapsedMinutes)} мин`);
-        }
+      // === ТЕСТОВЫЙ СКРИНШОТ В ПЕРВЫЕ 5 МИНУТ ПОСЛЕ ЗАПУСКА ===
+      const elapsedMinutes = (Date.now() - startTime) / 60000;
+      if (i === 0 && !screenshotTaken && elapsedMinutes <= 5) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `/tmp/test-screenshot-${timestamp}.png`;
+        await page.screenshot({ path: filename, fullPage: true });
+        console.log(`📸 [${i+1}/30] ТЕСТОВЫЙ СКРИНШОТ СОХРАНЁН: ${filename}`);
+        console.log(`🔗 Ссылка на сайт: ${fullUrls[i]}`);
+        console.log(`⏱️ Время с запуска: ${Math.round(elapsedMinutes)} мин ${Math.round((Date.now() - startTime) % 60000 / 1000)} сек`);
+        screenshotTaken = true;
+      } else if (i === 0 && !screenshotTaken && elapsedMinutes > 5) {
+        console.log(`⏳ [${i+1}/30] Тестовый скриншот пропущен (прошло ${Math.round(elapsedMinutes)} мин, нужно ≤ 5 мин)`);
       }
       
       await page.waitForTimeout(2000);
@@ -111,7 +111,11 @@ async function openPages() {
 // === КОНВЕРТЕР МОСКОВСКОГО ВРЕМЕНИ В UTC ===
 const scheduleInMoscow = (cronTime, callback) => {
   const [minute, hour, day, month, dayOfWeek] = cronTime.split(' ');
-  const utcHour = (parseInt(hour) - 3 + 24) % 24;
+  // Проверяем, что час не является '*'
+  let utcHour = hour;
+  if (hour !== '*') {
+    utcHour = (parseInt(hour) - 3 + 24) % 24;
+  }
   const utcCron = `${minute} ${utcHour} ${day} ${month} ${dayOfWeek}`;
   
   cron.schedule(utcCron, callback, { timezone: "UTC" });
@@ -119,11 +123,22 @@ const scheduleInMoscow = (cronTime, callback) => {
 };
 
 // === РАСПИСАНИЕ: КАЖДЫЙ ЧАС В 00 МИНУТ (МОСКОВСКОЕ ВРЕМЯ) ===
-scheduleInMoscow('0 * * * *', openPages); // Каждый час в 00 минут МСК
+scheduleInMoscow('0 0 * * *', openPages); // Каждый день в 00:00 МСК
+
+// === ТЕСТОВЫЙ ЗАПУСК ДЛЯ ПРОВЕРКИ (ЧЕРЕЗ 2 МИНУТЫ ОТ ТЕКУЩЕГО ВРЕМЕНИ) ===
+const now = new Date();
+const testMinute = (now.getMinutes() + 2) % 60;
+const testHour = now.getHours() + (now.getMinutes() + 2 >= 60 ? 1 : 0);
+if (testHour < 24) {
+  scheduleInMoscow(`${testMinute} ${testHour} * * *`, openPages);
+  console.log(`🧪 ТЕСТОВЫЙ ЗАПУСК в ${testHour}:${String(testMinute).padStart(2, '0')} МСК (через 2 минуты)`);
+} else {
+  console.log('⏰ Тестовый запуск пропущен (переход через полночь)');
+}
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
 console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
-console.log('⏰ Расписание: каждый час в 00 минут по Москве');
+console.log('⏰ Расписание: каждый день в 00:00 по Москве');
 
 // === HTTP-СЕРВЕР ДЛЯ RENDER (ЧТОБЫ НЕ ЗАСЫПАЛ) ===
 const server = http.createServer((req, res) => {
