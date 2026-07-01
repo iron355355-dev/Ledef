@@ -13,19 +13,24 @@ try {
   console.error('❌ Ошибка установки браузеров:', error.message);
 }
 
-// === СПИСОК URL (30 штук) ===
+// === ВАШИ URL ИЗ TASKER (В ТОЧНОСТИ ПО ПОРЯДКУ) ===
 const urls = [
-  'https://ledeffect.ru/projects/medical/',
-  'https://ledeffect.ru/projects/Interior/karcher/',
   'https://ledeffect.ru/',
+  'https://stimarket.ru/spares/transmissiya/mostyi',
+  'https://ledeffect.ru/projects/Interior/karcher/',
+  'https://ledeffect.ru/projects/medical/',
   'https://ledeffect.ru/video/company/',
   'https://ledeffect.ru/projects/sport/kipr/',
   'https://ledeffect.ru/projects/street',
+  'https://ledeffect.ru/projects/medical/',
   'https://ledeffect.ru/include/licenses_detail.php',
   'https://ledeffect.ru/projects/street/kamaz/',
+  'https://ledeffect.ru/projects/medical/',
   'https://ledeffect.ru/projects/commercial/',
   'https://ledeffect.ru/projects/sport/',
   'https://ledeffect.ru/projects/street/',
+  'https://ledeffect.ru/video',
+  'https://ledeffect.ru/company/online-applications/',
   'https://ledeffect.ru/company/online-applications/',
   'https://ledeffect.ru/projects/interior/',
   'https://ledeffect.ru/company/faq/',
@@ -34,19 +39,18 @@ const urls = [
   'https://ledeffect.ru/where-to-buy/ufo/',
   'https://ledeffect.ru/downloads/catalogs/',
   'https://ledeffect.ru/projects/sport/vysotnyy-gorod/',
+  'http://orange.ru/hlp-reacto.html?bef9c92eb1a2ec42c3f6c59ae5ef7f0b=69e3f32947c1a59fc4c7e501b4b63354',
+  'http://orange.ru/hlp-reacto4.html?bef9c92eb1a2ec42c3f6c59ae5ef7f0b=da65d6a583e8ee4332fad55a8dd4e343',
   'https://ledeffect.ru/projects/street/khord/',
-  'https://buyprodam.ru/1a/test.php'
+  'https://buyprodam.ru/1a/test.php',
+  'http://orange.ru/hlp-reacto4.html?bef9c92eb1a2ec42c3f6c59ae5ef7f0b=da65d6a583e8ee4332fad55a8dd4e343',
+  'http://orange.ru/hlp-reacto.html?bef9c92eb1a2ec42c3f6c59ae5ef7f0b=69e3f32947c1a59fc4c7e501b4b63354',
+  'http://orange.ru/hlp-reacto.html?bef9c92eb1a2ec42c3f6c59ae5ef7f0b=ae8d4af8ca1f2872a46fd604b794c045'
 ];
-
-// Дополняем до 30
-const fullUrls = [...urls];
-while (fullUrls.length < 30) {
-  fullUrls.push(urls[fullUrls.length % urls.length]);
-}
 
 // === ФУНКЦИЯ ОТКРЫТИЯ СТРАНИЦ ===
 async function openPages() {
-  console.log(`🔄 [${new Date().toLocaleString('ru-RU')}] Запуск открытия 30 страниц`);
+  console.log(`🔄 [${new Date().toLocaleString('ru-RU')}] Запуск открытия ${urls.length} страниц`);
   
   let browser;
   try {
@@ -78,12 +82,12 @@ async function openPages() {
   let screenshotTaken = false;
   const startTime = Date.now();
   
-  for (let i = 0; i < fullUrls.length; i++) {
+  for (let i = 0; i < urls.length; i++) {
     const page = await context.newPage();
     try {
-      console.log(`📄 [${i+1}/30] Открываю: ${fullUrls[i]}`);
+      console.log(`📄 [${i+1}/${urls.length}] Открываю: ${urls[i]}`);
       
-      const response = await page.goto(fullUrls[i], { 
+      const response = await page.goto(urls[i], { 
         waitUntil: 'networkidle',
         timeout: 30000 
       });
@@ -99,7 +103,7 @@ async function openPages() {
         };
       });
       
-      console.log(`📊 [${i+1}/30] Статус: ${response.status()}, JS выполнен`);
+      console.log(`📊 [${i+1}/${urls.length}] Статус: ${response.status()}, JS выполнен`);
       console.log(`   📌 title: "${jsExecuted.title}"`);
       console.log(`   📌 скриптов: ${jsExecuted.scripts}, состояние: ${jsExecuted.readyState}`);
       console.log(`   📌 длина body: ${jsExecuted.bodyLength} символов`);
@@ -110,27 +114,27 @@ async function openPages() {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `/tmp/test-screenshot-${timestamp}.png`;
         await page.screenshot({ path: filename, fullPage: true });
-        console.log(`📸 [${i+1}/30] ТЕСТОВЫЙ СКРИНШОТ СОХРАНЁН: ${filename}`);
-        console.log(`🔗 Ссылка на сайт: ${fullUrls[i]}`);
+        console.log(`📸 [${i+1}/${urls.length}] ТЕСТОВЫЙ СКРИНШОТ СОХРАНЁН: ${filename}`);
+        console.log(`🔗 Ссылка на сайт: ${urls[i]}`);
         console.log(`⏱️ Время с запуска: ${Math.round(elapsedMinutes)} мин ${Math.round((Date.now() - startTime) % 60000 / 1000)} сек`);
         screenshotTaken = true;
       } else if (i === 0 && !screenshotTaken && elapsedMinutes > 5) {
-        console.log(`⏳ [${i+1}/30] Тестовый скриншот пропущен (прошло ${Math.round(elapsedMinutes)} мин, нужно ≤ 5 мин)`);
+        console.log(`⏳ [${i+1}/${urls.length}] Тестовый скриншот пропущен (прошло ${Math.round(elapsedMinutes)} мин, нужно ≤ 5 мин)`);
       }
       
       await page.waitForTimeout(2000);
       successCount++;
-      console.log(`✅ [${i+1}/30] Успешно: ${fullUrls[i]}`);
+      console.log(`✅ [${i+1}/${urls.length}] Успешно: ${urls[i]}`);
       
     } catch (error) {
-      console.error(`❌ [${i+1}/30] Ошибка: ${fullUrls[i]} - ${error.message}`);
+      console.error(`❌ [${i+1}/${urls.length}] Ошибка: ${urls[i]} - ${error.message}`);
     } finally {
       await page.close();
     }
   }
   
   await browser.close();
-  console.log(`✅ [${new Date().toLocaleString('ru-RU')}] Завершено: ${successCount}/${fullUrls.length} страниц`);
+  console.log(`✅ [${new Date().toLocaleString('ru-RU')}] Завершено: ${successCount}/${urls.length} страниц`);
   console.log(`📊 Общее время выполнения: ${Math.round((Date.now() - startTime) / 1000)} сек`);
 }
 
@@ -167,7 +171,7 @@ setTimeout(() => {
 }, 30000);
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
-console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
+console.log(`📊 Всего URL в списке: ${urls.length}`);
 console.log('⏰ Расписание: каждый день в 00:00 по Москве');
 
 // === HTTP-СЕРВЕР ДЛЯ RENDER (ЧТОБЫ НЕ ЗАСЫПАЛ) ===
