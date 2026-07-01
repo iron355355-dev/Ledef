@@ -78,7 +78,7 @@ async function openPages() {
       console.log(`   📌 скриптов: ${jsExecuted.scripts}, состояние: ${jsExecuted.readyState}`);
       console.log(`   📌 длина body: ${jsExecuted.bodyLength} символов`);
       
-      // === ТЕСТОВЫЙ СКРИНШОТ В ПЕРВЫЕ 5 МИНУТ ПОСЛЕ ЗАПУСКА ===
+      // === ТЕСТОВЫЙ СКРИНШОТ В ПЕРВЫЕ 5 МИНУТ ===
       const elapsedMinutes = (Date.now() - startTime) / 60000;
       if (i === 0 && !screenshotTaken && elapsedMinutes <= 5) {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -110,31 +110,35 @@ async function openPages() {
 
 // === КОНВЕРТЕР МОСКОВСКОГО ВРЕМЕНИ В UTC ===
 const scheduleInMoscow = (cronTime, callback) => {
-  const [minute, hour, day, month, dayOfWeek] = cronTime.split(' ');
-  // Проверяем, что час не является '*'
-  let utcHour = hour;
-  if (hour !== '*') {
-    utcHour = (parseInt(hour) - 3 + 24) % 24;
+  try {
+    const [minute, hour, day, month, dayOfWeek] = cronTime.split(' ');
+    let utcHour = hour;
+    if (hour !== '*') {
+      utcHour = (parseInt(hour) - 3 + 24) % 24;
+    }
+    const utcCron = `${minute} ${utcHour} ${day} ${month} ${dayOfWeek}`;
+    
+    cron.schedule(utcCron, callback, { timezone: "UTC" });
+    console.log(`⏰ Запланировано на ${hour}:${minute} МСК (${utcHour}:${minute} UTC)`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Ошибка в расписании: ${error.message}`);
+    return false;
   }
-  const utcCron = `${minute} ${utcHour} ${day} ${month} ${dayOfWeek}`;
-  
-  cron.schedule(utcCron, callback, { timezone: "UTC" });
-  console.log(`⏰ Запланировано на ${hour}:${minute} МСК (${utcHour}:${minute} UTC)`);
 };
 
-// === РАСПИСАНИЕ: КАЖДЫЙ ЧАС В 00 МИНУТ (МОСКОВСКОЕ ВРЕМЯ) ===
-scheduleInMoscow('0 0 * * *', openPages); // Каждый день в 00:00 МСК
+// === РАСПИСАНИЕ ===
+console.log('🔄 Регистрация расписания...');
 
-// === ТЕСТОВЫЙ ЗАПУСК ДЛЯ ПРОВЕРКИ (ЧЕРЕЗ 2 МИНУТЫ ОТ ТЕКУЩЕГО ВРЕМЕНИ) ===
-const now = new Date();
-const testMinute = (now.getMinutes() + 2) % 60;
-const testHour = now.getHours() + (now.getMinutes() + 2 >= 60 ? 1 : 0);
-if (testHour < 24) {
-  scheduleInMoscow(`${testMinute} ${testHour} * * *`, openPages);
-  console.log(`🧪 ТЕСТОВЫЙ ЗАПУСК в ${testHour}:${String(testMinute).padStart(2, '0')} МСК (через 2 минуты)`);
-} else {
-  console.log('⏰ Тестовый запуск пропущен (переход через полночь)');
-}
+// Основное расписание: каждый день в 00:00 МСК
+scheduleInMoscow('0 0 * * *', openPages);
+
+// === ТЕСТОВЫЙ ЗАПУСК ЧЕРЕЗ 30 СЕКУНД ПОСЛЕ СТАРТА ===
+console.log('⏳ Запланирован тестовый запуск через 30 секунд...');
+setTimeout(() => {
+  console.log('🧪 ТЕСТОВЫЙ ЗАПУСК (немедленный)');
+  openPages();
+}, 30000);
 
 console.log('🚀 Сервер запущен! Ожидание расписания...');
 console.log(`📊 Всего URL в списке: ${fullUrls.length}`);
