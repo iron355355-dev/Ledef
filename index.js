@@ -2,6 +2,16 @@ const { chromium } = require('playwright');
 const cron = require('node-cron');
 const http = require('http');
 const fs = require('fs');
+const { execSync } = require('child_process');
+
+// === АВТОМАТИЧЕСКАЯ УСТАНОВКА БРАУЗЕРОВ ===
+console.log('📦 Проверка и установка браузеров Playwright...');
+try {
+  execSync('npx playwright install chromium', { stdio: 'inherit' });
+  console.log('✅ Браузеры успешно установлены');
+} catch (error) {
+  console.error('❌ Ошибка установки браузеров:', error.message);
+}
 
 // === СПИСОК URL (30 штук) ===
 const urls = [
@@ -38,10 +48,26 @@ while (fullUrls.length < 30) {
 async function openPages() {
   console.log(`🔄 [${new Date().toLocaleString('ru-RU')}] Запуск открытия 30 страниц`);
   
-  const browser = await chromium.launch({ 
-    headless: true,
-    args: ['--no-sandbox']
-  });
+  let browser;
+  try {
+    browser = await chromium.launch({ 
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+  } catch (error) {
+    console.error('❌ Ошибка запуска браузера:', error.message);
+    console.log('🔄 Пробую установить браузеры заново...');
+    try {
+      execSync('npx playwright install chromium', { stdio: 'inherit' });
+      browser = await chromium.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    } catch (retryError) {
+      console.error('❌ Повторная ошибка:', retryError.message);
+      return;
+    }
+  }
   
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
